@@ -1,0 +1,108 @@
+function [ANOVA_pvals_binsize_latency_aligned_matrix ANOVA_etas_binsize_latency_aligned_matrix] = create_binsize_latency_datastructure(result_type, datadir_name, name_of_labels_to_use, bin_widths, step_size, label_numbers_to_use)
+
+
+
+
+if nargin < 6
+  label_numbers_to_use = [];  
+end
+
+
+
+
+for iBinWidth = 1:length(bin_widths)   %parfor
+
+    tic
+    
+    [the_data the_labels] = load_data(datadir_name, bin_widths(iBinWidth), step_size, name_of_labels_to_use);
+ 
+    
+    if result_type == 1;
+        [ANOVA_pvalues_all_sites ANOVA_STATS_all_sites] = get_ANOVA_pvalues_from_binned_data(binned_data, name_of_labels_to_use, label_numbers_to_use);
+    end
+    
+    
+    
+    curr_ANOVA_pvals = [];
+    
+    for iNeuron = 1:length(the_data)
+        [blah curr_ANOVA_pvals{iNeuron} curr_ANOVA_etas{iNeuron}] = rank_features_using_an_ANOVA(the_data{iNeuron}', the_labels{iNeuron});
+    end
+    
+    ANOVA_pvals_all_bin_sizes{iBinWidth} = curr_ANOVA_pvals;
+    ANOVA_etas_all_bin_sizes{iBinWidth}  = curr_ANOVA_etas;
+
+    toc
+    
+end
+        
+
+ANOVA_pvals_binsize_latency_aligned_matrix = convert_binsize_cell_array_into_matrix_format(ANOVA_pvals_all_bin_sizes, bin_widths, step_size);
+ANOVA_etas_binsize_latency_aligned_matrix = convert_binsize_cell_array_into_matrix_format(ANOVA_etas_all_bin_sizes, bin_widths, step_size);
+
+
+
+
+
+
+function [the_data the_labels] =  load_data(datadir_name, bin_width, step_size, name_of_labels_to_use)
+% I need to make this a separate function because parfor can not handel eval statments
+
+    load([datadir_name 'binned_data_' num2str(bin_width) 'ms_bins_' num2str(step_size) 'ms_sampled.mat']);
+    
+    the_labels = eval(['all_labels.' name_of_labels_to_use]);
+
+
+
+
+
+    
+    
+    
+function binsize_latency_aligned_matrix = convert_binsize_cell_array_into_matrix_format(MI_binsize_latency_cellarray, bin_widths, step_size)
+
+
+
+
+[min_bin_size min_bin_ind] = min(bin_widths);
+num_ms_in_experiment = ((length(MI_binsize_latency_cellarray{min_bin_ind}{1}) - 1).* step_size) + min_bin_size;  % hopefully this is always right 
+
+start_times = bin_widths./2;
+end_times = num_ms_in_experiment - start_times;
+
+
+ref_range = start_times(min_bin_ind):step_size:end_times(min_bin_ind);  
+
+
+num_bins_to_use = length(bin_widths);
+
+
+
+binsize_latency_aligned_matrix = NaN .* ones(length(MI_binsize_latency_cellarray), num_bins_to_use, length(ref_range));   % pre-allocate to save memory
+
+
+% calculate which columns that the data from each bin size should start and end at
+ for iBinSize = 1:num_bins_to_use
+    all_start_end_inds(iBinSize, :) = [find(ref_range == start_times(iBinSize))  find(ref_range == end_times(iBinSize))];
+ end
+
+ 
+ 
+ for iNeuron = 1:length(MI_binsize_latency_cellarray{1})
+    
+     curr_neuron_matrix = NaN .* ones(num_bins_to_use, length(ref_range));
+         
+    for iBinSize = 1:num_bins_to_use
+       curr_neuron_matrix(iBinSize, all_start_end_inds(iBinSize, 1):all_start_end_inds(iBinSize, 2)) = MI_binsize_latency_cellarray{iBinSize}{iNeuron}; 
+    end
+        
+       
+    binsize_latency_aligned_matrix(iNeuron, :, :) = curr_neuron_matrix;
+     
+ end
+ 
+ 
+
+
+
+
