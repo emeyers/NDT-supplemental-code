@@ -1,4 +1,4 @@
-function MI_RESULTS = get_MI_from_binned_data(binned_data, binned_labels_to_use, label_numbers_to_use, num_bias_correction_shuffled_resamples, use_uniform_prior_stimulus_distribution, sites_to_use)
+function MI_RESULTS = get_MI_from_binned_data(binned_data_name, specific_binned_label_name, label_numbers_to_use, num_bias_correction_shuffled_resamples, use_uniform_prior_stimulus_distribution, sites_to_use)
 
 % This function calculates the mutual information between binned_data and particular binned_labels 
 %   for each site at all time periods, using the standard formula: 
@@ -9,14 +9,14 @@ function MI_RESULTS = get_MI_from_binned_data(binned_data, binned_labels_to_use,
 %   is also returned, along with p-values that assess how likely the real mutual information value is 
 %   to have come from the shuffled null-distribution.  The input arguments to this function are:
 %
-%   1.  binned_data: the data in binned-format or a string that specifies a file that has data in binned format
+%   1.  binned_data_name: the data in binned-format or a string that specifies a file that has data in binned format
 %
-%   2.  binned_labels_to_use: particular binned labels used to calculate mutual information from 
-%          (e.g., binned_labels.binned_labels_to_use). This is a character array listing the name of the labels that should be used.
+%   2.  specific_binned_label_name: particular binned labels used to calculate mutual information from 
+%          (e.g., binned_labels.specific_binned_label_name). This is a character array listing the name of the labels that should be used.
 %
 %  Optional input arguments:
 %
-%   3.  label_numbers_to_use:  which labels numbers should be used (of the numbers listed in binned_labels_to_use). 
+%   3.  label_numbers_to_use:  which labels numbers should be used (of the names/numbers listed in binned_labels_to_use). 
 %           If this field is empty (or if this argument is not given) then all the labels available will be 
 %           used (i.e., label_numbers_to_use = unique(binned_labels_to_use{iSite}). This field can also be a cell array of
 %           of strings with the names of labels to use if the binned_labels are strings.
@@ -86,16 +86,8 @@ function MI_RESULTS = get_MI_from_binned_data(binned_data, binned_labels_to_use,
 %========================================================================== 
 
 
-% if binned data is the name of a file (rather than actual binned_data) load the file to get the binned data
-if ischar(binned_data)
-    load(binned_data)  % load the binned_data file name to get the actual binned data
-end
-
-% if binned_labels_to_use is the name of the labels that should be used (rather than the actual cell array of labels) 
-%  get the actual array of labels that correspond to this name...
-if ischar(binned_labels_to_use)
-    binned_labels_to_use = eval(['binned_labels.' binned_labels_to_use]);
-end
+% gets the binned_data and the specific binned labels to use for different formats of binned_data_name and specific_binned_label_name
+[binned_data, binned_labels_to_use] = retrieve_binned_format_data(binned_data_name, specific_binned_label_name);
 
 
 % if specific label numbers are not specified, use all the label numbers in the data
@@ -122,7 +114,7 @@ end
 
 
 if iscell(binned_labels_to_use{1})
-    [binned_labels_to_use string_to_number_mapping] = convert_label_strings_into_numbers(binned_labels_to_use);
+    [binned_labels_to_use, string_to_number_mapping] = convert_label_strings_into_numbers(binned_labels_to_use);
 end
 
 
@@ -138,7 +130,17 @@ MI_shuffled_values = NaN * ones(numel(sites_to_use), size(binned_data{1}, 2), nu
 
 for iSite = 1:numel(sites_to_use)
    
-   iSite    % display progress
+    
+    % print a message about the progress of how many sites MI has been calculated for (since the code can be slow)
+    curr_bin_string = [' Calculating MI for site: ' num2str(iSite) ' of ' num2str(numel(sites_to_use))];
+    if iSite == 1
+        disp(curr_bin_string); 
+    else
+        fprintf([repmat(8,1,bin_str_len) curr_bin_string]);         
+    end
+    bin_str_len = length(curr_bin_string);
+   
+   
    
    curr_site_ind = sites_to_use(iSite);
    
@@ -161,11 +163,15 @@ MI_RESULTS.label_numbers_used = label_numbers_to_use;
 MI_RESULTS.MI_shuffled_values = MI_shuffled_values;
 
 
+% print a new line at the end so that the prompt is left justified
+fprintf('\n')
 
 
 
 
-function [MI_bias_corrected MI_no_bias_correction MI_pvalues MI_shuffled] = get_MI_one_site_shuffle_bias_correction(R, S, label_numbers_to_use, num_bias_corrected_shuffles, use_uniform_stim_dist)
+
+
+function [MI_bias_corrected, MI_no_bias_correction, MI_pvalues, MI_shuffled] = get_MI_one_site_shuffle_bias_correction(R, S, label_numbers_to_use, num_bias_corrected_shuffles, use_uniform_stim_dist)
 % A helper function that gets the mutual information from one binned site (at all times) using the formula:  
 %   MI(S; R) = sum_s p(S) .* sum_r p(R|S) log2 P(R|S)./P(R) 
 %
