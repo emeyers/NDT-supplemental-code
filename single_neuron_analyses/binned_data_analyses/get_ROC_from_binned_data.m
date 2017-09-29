@@ -1,29 +1,53 @@
-function ROC_results = get_ROC_from_binned_data(binned_data, binned_labels_to_use, label_numbers_to_use, sites_to_use)
+function ROC_RESULTS = get_ROC_from_binned_data(binned_data_name, specific_binned_label_name, label_names_to_use, sites_to_use)
+% 
+% This function calculates the area under the ROC curve. For each class label i, the area under the ROC curve is caluclated using
+% the data from class i and the first class, and the data from all the other classes as the second class. 
+%
+%
+% The input arguments to this function are:
+%
+%   1.  binned_data_name: is string that has the name of a file that has data in binned-format, 
+%            or is a cell array of binned-format binned_data 
+%
+%   2.  specific_binned_label_name: is a string containing a specific binned-format label name, or  
+%           is a cell array/vector containing the specific binned names (i.e., binned_labels.specific_binned_label_name)
+%     
+%     
+%  Optional input arguments:
+%
+%   3.  label_names_to_use:  which labels numbers should be used (of the names/numbers listed in binned_labels_to_use). 
+%           If this field is empty (or if this argument is not given) then all the labels available will be used.
+%      
+%   4.  sites_to_use: which sites to include in the analysis. If not set all sites will be used
+%
+%
+%  The results returned is ROC_RESULTS which is a cell array, where each cell ROC_RESULTS{i} contains the area under the ROC curve
+%       between class i and all other classes.
+%
+%
+%
+%  Note: this function uses the cross-validators/get_AUC.m function from the Neural Decoding Toolbox
+%
+%
+%  Example of plotting the mean deviation from unity (.5) on the ROC curve for each class compared to all other classes  
+%
+%   for i = 1:size(ROC_RESULTS) 
+%        plot(mean(abs(.5 - ROC_RESULTS{i}))); 
+%        pause
+%   end
+%       
 
 
-% might not be working perfectly yet since seems to be assymetry between ROC_results{1} and ROC_results{2} when only 2 labels are used...
-
-% note: uses the cross-validators/get_AUC.m function
-
-% to plot the results you can use:  for i = 1:size(ROC_RESULTS), plot(mean(abs(.5 - ROC_RESULTS{i}))); pause, end
 
 
+% gets the binned_data and the specific binned labels to use for different formats of binned_data_name and specific_binned_label_name
+[binned_data, binned_labels_to_use] = retrieve_binned_format_data(binned_data_name, specific_binned_label_name);
 
-% if binned data is the name of a file (rather than actual binned_data) load the file to get the binned data
-if ischar(binned_data)
-    load(binned_data)  % load the binned_data file name to get the actual binned data
-end
-
-% if binned_labels_to_use is the name of the labels that should be used (rather than the actual cell array of labels) 
-%  get the actual array of labels that correspond to this name...
-if ischar(binned_labels_to_use)
-    binned_labels_to_use = eval(['binned_labels.' binned_labels_to_use]);
-end
 
 
 % if specific label numbers are not specified, use all the label numbers in the data
 if nargin < 3
-   label_numbers_to_use = [];   
+   label_names_to_use = [];   
 end
 
 
@@ -40,9 +64,9 @@ end
 
 
 
-% if label_numbers_to_use is a cell array of strings, convert them to the appropriate numbers
-if ~isempty(label_numbers_to_use) && iscell(label_numbers_to_use)
-    label_numbers_to_use = find(ismember(string_to_number_mapping, label_numbers_to_use));
+% if label_names_to_use is a cell array of strings, convert them to the appropriate numbers
+if ~isempty(label_names_to_use) && iscell(label_names_to_use)
+    label_names_to_use = find(ismember(string_to_number_mapping, label_names_to_use));
 end
 
 
@@ -51,28 +75,27 @@ end
 for iSite = 1:numel(sites_to_use)
     
     
-    %iSite
+    % could add code to display progress, but the code runs pretty fast...
     
     
-    
-    if isempty(label_numbers_to_use)
-        curr_label_numbers_to_use = unique(binned_labels_to_use{iSite}); 
+    if isempty(label_names_to_use)
+        curr_label_names_to_use = unique(binned_labels_to_use{iSite}); 
     else
-        curr_label_numbers_to_use = label_numbers_to_use;
+        curr_label_names_to_use = label_names_to_use;
     end
 
     
-    all_valid_label_inds = find(ismember(binned_labels_to_use{iSite}, curr_label_numbers_to_use));
+    all_valid_label_inds = find(ismember(binned_labels_to_use{iSite}, curr_label_names_to_use));
 
     
-    for iLabel = 1:numel(curr_label_numbers_to_use)
+    for iLabel = 1:numel(curr_label_names_to_use)
             
-        target_present_inds = find(binned_labels_to_use{iSite} == curr_label_numbers_to_use(iLabel));
-        target_absent_inds = intersect(all_valid_label_inds, find(binned_labels_to_use{iSite} ~= curr_label_numbers_to_use(iLabel))); 
+        target_present_inds = find(binned_labels_to_use{iSite} == curr_label_names_to_use(iLabel));
+        target_absent_inds = intersect(all_valid_label_inds, find(binned_labels_to_use{iSite} ~= curr_label_names_to_use(iLabel))); 
 
 
         for iTime = 1:size(binned_data{iSite}, 2)            
-            ROC_results{iLabel}(iSite, iTime) = get_AUC(binned_data{iSite}(target_present_inds, iTime),  binned_data{iSite}(target_absent_inds, iTime));
+            ROC_RESULTS{iLabel}(iSite, iTime) = get_AUC(binned_data{iSite}(target_present_inds, iTime),  binned_data{iSite}(target_absent_inds, iTime));
         end
 
     end
