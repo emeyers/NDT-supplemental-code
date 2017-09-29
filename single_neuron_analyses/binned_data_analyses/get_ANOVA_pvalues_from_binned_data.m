@@ -1,4 +1,4 @@
-function [ANOVA_pvalues_all_sites ANOVA_STATS_all_sites] = get_ANOVA_pvalues_from_binned_data(binned_data_name, specific_binned_label_name, label_names_to_use, sites_to_use)
+function [ANOVA_pvalues_all_sites, ANOVA_STATS_all_sites] = get_ANOVA_pvalues_from_binned_data(binned_data_name, specific_binned_label_name, label_names_to_use, sites_to_use)
 
 % This function calculates the p-values as to whether each site at each time point is selective
 %   to the labels based on using a one-way analysis of variance (ANOVA).  Essentially this is the 
@@ -128,7 +128,7 @@ for iSite = 1:length(sites_to_use)
     end
    
         
-    [ANOVA_pvals ANOVA_STATS] = compute_oneway_ANOVA(X_data, Y_labels);  % compute_oneway_ANOVA does all the heavy work
+    [ANOVA_pvals, ANOVA_STATS] = compute_oneway_ANOVA(X_data, Y_labels);  % compute_oneway_ANOVA does all the heavy work
    
     
     ANOVA_pvalues_all_sites(iSite, :) = ANOVA_pvals;
