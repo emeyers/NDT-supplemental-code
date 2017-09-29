@@ -73,24 +73,8 @@ function [ANOVA_pvalues_all_sites, ANOVA_STATS_all_sites] = get_ANOVA_pvalues_fr
 
 
 
- 
-
-% test whether the binned_data_name is the name of a file that has binned_data 
-% or whether it is is cell array of actual binned_data
-if isstr(binned_data_name)
-    load(binned_data_name);
-else
-    binned_data = binned_data_name;
-end
-
-
-% test whether specific_binned_label_name is a string specifying which binned labels should be used
-% or a cell array containing the actual binned labels
-if isstr(specific_binned_label_name)
-    binned_labels_to_use = eval(['binned_labels.' specific_binned_label_name]);
-else          
-    binned_labels_to_use = specific_binned_label_name;
-end
+% gets the binned_data and the specific binned labels to use for different formats of binned_data_name and specific_binned_label_name
+[binned_data, binned_labels_to_use] = retrieve_binned_format_data(binned_data_name, specific_binned_label_name);
 
 
 
