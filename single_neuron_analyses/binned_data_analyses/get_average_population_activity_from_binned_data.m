@@ -1,4 +1,4 @@
-function [stimulus_time_average_activity_matrix, site_time_stimulus_activity_matrix] = get_average_population_activity_from_binned_data(binned_file_name, stimulus_label_name, normalization_type, stimulus_names_to_use, get_results_for_each_stimulus_separately, sites_to_use)
+function [stimulus_time_average_activity_matrix, site_time_stimulus_activity_matrix] = get_average_population_activity_from_binned_data(binned_data_name, specific_binned_label_name, normalization_type, stimulus_names_to_use, get_results_for_each_stimulus_separately, sites_to_use)
 
 
 % could add a return argument site_time_stimulus_stdev_matrix that returns the stdevs as well...
@@ -8,12 +8,12 @@ function [stimulus_time_average_activity_matrix, site_time_stimulus_activity_mat
 %
 %  The input arguments to this function are:
 %
-%   1. binned_file_name: the name of a data file in binned-format
+%   1. binned_data_name: the name of a data file in binned-format
 %
 %
 %  Optional input arguments to this function are:
 %
-%   2. stimulus_label_name (default = []): If this is empty, then data from all trials will be used, and results can not be calculated seprately for each stimulus.
+%   2. specific_binned_label_name (default = []): If this is empty, then data from all trials will be used, and results can not be calculated seprately for each stimulus.
 %       If this is set to a string specifying the name of the stimulus labels, then if get_results_for_each_stimulus_separately = 1, the activity will be calculated
 %       separately for each stimulus - and if get_results_for_each_stimulus_separately = 0 and stimulus_names_to_use is set, then only trials specified in 
 %       stimulus_names_to_use will be used.
@@ -25,7 +25,7 @@ function [stimulus_time_average_activity_matrix, site_time_stimulus_activity_mat
 %         loweset firing rate at the lowest time point.   
 %
 %   4.  stimulus_names_to_use (default = []):  If this is set to a cell array, then only stimulus names in this cell array will be used. If this is not set, then all
-%         stimuli that the first site has will be used - stimulus_label_name must be set to use this option.  
+%         stimuli that the first site has will be used - specific_binned_label_name must be set to use this option.  
 %
 %   5.  get_results_for_each_stimulus_separately (default = 1).  If this is set to 1, then the results will be calculated separately for each stimulus.  Overwise,
 %          the results will be averaged over all stimuli (note that stimuli that have more repeated trials will contribute more to this average).  
@@ -45,16 +45,15 @@ function [stimulus_time_average_activity_matrix, site_time_stimulus_activity_mat
 %  Note:
 %
 %   If one calculates the activity activity separately for each stimulus and then later averages over all stimuli
-%    (i.e., [stimulus_time_average_activity_matrix] = get_average_population_activity_from_binned_data(binned_file_name, stimulus_label_name, 0, [], 0),
+%    (i.e., [stimulus_time_average_activity_matrix] = get_average_population_activity_from_binned_data(binned_data_name, specific_binned_label_name, 0, [], 0),
 %    ave_over_stimuli_1 = mean(stimulus_time_average_activity_matrix, 1);), this average will be slightly different from collapsing across all stimuli first
-%    (i.e., ave_over_stimuli_2 = get_average_population_activity_from_binned_data(binned_file_name, stimulus_label_name, 0, [], 1)).
+%    (i.e., ave_over_stimuli_2 = get_average_population_activity_from_binned_data(binned_data_name, specific_binned_label_name, 0, [], 1)).
 %    The reason is if one collapses across all stimuli first, then stimuli with more trials will be weighted more when calculated the population average.   
 %
 
 
-
 if nargin < 2
-    stimulus_label_name = [];
+    specific_binned_label_name = [];
 end
 
 if nargin < 3
@@ -70,31 +69,30 @@ if nargin < 5
 end
 
 
-all_binned_format_data = load(binned_file_name);
+[binned_data, binned_labels_to_use] = retrieve_binned_format_data(binned_data_name, specific_binned_label_name);
+
 
 if nargin < 6
-    sites_to_use = 1:numel(all_binned_format_data.binned_data);
+    sites_to_use = 1:numel(binned_data);
 end
 
 
-% if  stimulus_label_name is empty or an empty string, use data from all trials
-if isempty(stimulus_label_name) || strcmp(stimulus_label_name, '')
+% if specific_binned_label_name is empty or an empty string, use data from all trials
+if isempty(specific_binned_label_name) || sum(strcmp(specific_binned_label_name, ''))
     
     get_results_for_each_stimulus_separately = 0;        
     stimulus_names_to_use = [];
     if ~isempty(stimulus_names_to_use)
-        error('if stimulus_label_name is empty or set to an empty string, then stimulus_names_to_use can not be set')
+        error('if specific_binned_label_name is empty or set to an empty string, then stimulus_names_to_use can not be set')
     end
     
     
 else
     
-    labels_to_use = eval(['all_binned_format_data.binned_labels.' stimulus_label_name]);
-
     % If the labels are a cell array of strings, convert them to numbers
-    if iscell(labels_to_use{1})
+    if iscell(binned_labels_to_use{1})
 
-        [labels_to_use string_to_number_mapping] = convert_label_strings_into_numbers(labels_to_use);
+        [binned_labels_to_use, string_to_number_mapping] = convert_label_strings_into_numbers(binned_labels_to_use);
 
         % only used specified strings
         if ~isempty(stimulus_names_to_use)
@@ -113,10 +111,10 @@ if  get_results_for_each_stimulus_separately == 0
      
     for iSite = 1:length(sites_to_use)
         if isempty(stimulus_names_to_use)
-            site_time_stimulus_activity_matrix(iSite, :) = mean(all_binned_format_data.binned_data{sites_to_use(iSite)});   
+            site_time_stimulus_activity_matrix(iSite, :) = mean(binned_data{sites_to_use(iSite)});   
         else
-            trial_inds_to_use = find(ismember(labels_to_use{sites_to_use(iSite)}, stimulus_names_to_use));            
-            site_time_stimulus_activity_matrix(iSite, :) = mean(all_binned_format_data.binned_data{sites_to_use(iSite)}(trial_inds_to_use, :)); 
+            trial_inds_to_use = find(ismember(binned_labels_to_use{sites_to_use(iSite)}, stimulus_names_to_use));            
+            site_time_stimulus_activity_matrix(iSite, :) = mean(binned_data{sites_to_use(iSite)}(trial_inds_to_use, :)); 
         end
                 
     end
@@ -129,15 +127,15 @@ else
 
 
     if isempty(stimulus_names_to_use)
-        stimulus_names_to_use = unique(labels_to_use{1});
+        stimulus_names_to_use = unique(binned_labels_to_use{1});
     end
 
     for iSite = 1:length(sites_to_use)   
         
         for iStim = 1:numel(stimulus_names_to_use)
-            curr_inds = find(labels_to_use{sites_to_use(iSite)} == stimulus_names_to_use(iStim));           
-            site_time_stimulus_activity_matrix(iSite, :, iStim) = mean(all_binned_format_data.binned_data{sites_to_use(iSite)}(curr_inds, :));
-            %site_time_stimulus_stdev_matrix(iSite, :, iStim) = std(all_binned_format_data.binned_data{iSite}(curr_inds, :));
+            curr_inds = find(binned_labels_to_use{sites_to_use(iSite)} == stimulus_names_to_use(iStim));           
+            site_time_stimulus_activity_matrix(iSite, :, iStim) = mean(binned_data{sites_to_use(iSite)}(curr_inds, :));
+            %site_time_stimulus_stdev_matrix(iSite, :, iStim) = std(binned_data{iSite}(curr_inds, :));
         end
             
     end
