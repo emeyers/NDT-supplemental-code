@@ -205,13 +205,20 @@ end
 
 
 
-% return that there is no MI if all the responses are always the same
+% return that there is no MI if all the responses are always the same or if only 1 stimulus was used
 unique_response = unique(R);
 
-if length(unique_response) == 1
+if (length(unique_response) == 1) || (length(unique_stimuli_to_use) == 1)
     MI_bias_corrected = 0;
     MI_no_bias_correction = 0;
     MI_pvalues = 1;
+    MI_shuffled = 0;
+    
+    % print a warning if only one stimulus was used since you really shouldn't be computing MI if only 1 stimulus was used
+    if (length(unique_stimuli_to_use) == 1)
+        warning('Only one stimulus was used in this site, so you really should not be computing MI for this stite')
+    end
+    
     return
 end
 
@@ -325,4 +332,5 @@ for iTime = 1:size(MI_shuffled, 2)
    MI_pvalues(iTime) = 1 - (length(find(MI_no_bias_correction(iTime) > MI_shuffled(:, iTime))))./size(MI_shuffled, 1);
 end
 
-MI_shuffled  = MI_shuffled'; 
+MI_shuffled = MI_shuffled'; 
+
